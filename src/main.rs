@@ -11,7 +11,7 @@ fn main() {
     let _ = match json_values_byte_offsets(json_bytes) {
         Ok(jo) => {
             for j in jo {
-                if j.r#type() == jvob::JType::JString {
+                if *j.r#type() == jvob::JType::JString {
                     println!("map: {:?}", j.value().trim_edges_bytes().unwrap());
                 } else {
                     println!("map: {:?}", j.value());

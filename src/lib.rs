@@ -2,7 +2,7 @@ use std::{io::{BufReader, Read, Seek}};
 use json_syntax::{CodeMap, Parse, Value};
 use std::io::Cursor;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum JType {
     JString,
     JNumber,
@@ -37,16 +37,16 @@ impl JValueMap {
         return JValueMap { t: _t, region: _r, value: _v }
     }
 
-    pub fn region(self) -> (usize, usize) {
+    pub fn region(&self) -> (usize, usize) {
         self.region
     }
 
-    pub fn r#type(&self) -> JType {
-        self.t.clone()
+    pub fn r#type(&self) -> &JType {
+        &self.t
     }
 
-    pub fn value(self) -> String {
-        self.value
+    pub fn value(&self) -> &String {
+        &self.value
     }
 }
 
