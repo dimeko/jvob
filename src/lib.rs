@@ -33,7 +33,7 @@ pub struct JValueMap {
 }
 
 impl JValueMap {
-    fn new(_r: (usize, usize), _v: String, _t: JType) -> Self {
+    pub fn new(_r: (usize, usize), _v: String, _t: JType) -> Self {
         return JValueMap { t: _t, region: _r, value: _v }
     }
 
@@ -59,7 +59,14 @@ pub fn json_values_byte_offsets(json_bytes: Vec<u8>) -> Result<Vec<JValueMap>, S
     let mut json_values : Vec<JValueMap> = Vec::new();
     reader.read_to_end(&mut _json_bytes_vec).unwrap();
 
-    let _: Result<(Value, CodeMap), json_syntax::parse::Error> = match Value::parse_str(String::from_utf8(_json_bytes_vec.clone()).unwrap().as_str()) {
+    let json_str = match String::from_utf8(_json_bytes_vec.clone()) {
+        Ok(_js) => _js,
+        Err(_e) => {
+            return Err("could not parse bytes as json string".to_owned());
+        }
+    };
+
+    let _: Result<(Value, CodeMap), json_syntax::parse::Error> = match Value::parse_str(json_str.as_str()) {
         Ok(_p) => {
             'outer: for _map in _p.1 {
                 reader.seek(std::io::SeekFrom::Start(0)).unwrap();
@@ -97,7 +104,7 @@ pub fn json_values_byte_offsets(json_bytes: Vec<u8>) -> Result<Vec<JValueMap>, S
             return Ok(json_values);
         },
         Err(_r) => {
-            return Err("could not parse btes as json".to_owned());
+            return Err("could not parse bytes as json".to_owned());
         }
     };
 }
