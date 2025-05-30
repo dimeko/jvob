@@ -85,7 +85,7 @@ pub fn json_values_byte_offsets(json_bytes: Vec<u8>) -> Result<Vec<JValueMap>, S
                 let _type: JType;
                 match tmp_value.chars().nth(0).unwrap() {
                     '\"' => {
-                        json_values.push(JValueMap::new((_map.1.span.start(), _map.1.span.end()), tmp_value, JType::JString));
+                        json_values.push(JValueMap::new((_map.1.span.start()+1, _map.1.span.end()-1), tmp_value, JType::JString));
                     },
                     't' | 'f' => {
                         json_values.push(JValueMap::new((_map.1.span.start(), _map.1.span.end()), tmp_value, JType::JBool));
