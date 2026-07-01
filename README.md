@@ -4,5 +4,5 @@ Use jvob if you have a json bytes vector and you want to find the indexs (offset
 
 Run the test `main.rs` to check a json file:
 ```bash
-cargo run -- test.jso
+cargo run -- test.json
 ```
