@@ -1,6 +1,4 @@
-use std::{io::{BufReader, Read, Seek}};
-use json_syntax::{CodeMap, Parse, Value};
-use std::io::Cursor;
+use json_syntax::{FragmentRef, Parse, Value};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum JType {
@@ -26,6 +24,7 @@ impl TrimString for String {
     }
 }
 
+#[derive(Debug)]
 pub struct JValueMap {
     t: JType,
     region: (usize, usize),
@@ -50,61 +49,28 @@ impl JValueMap {
     }
 }
 
+
 pub fn json_values_byte_offsets(json_bytes: Vec<u8>) -> Result<Vec<JValueMap>, String> {
-    let cursor = Cursor::new(json_bytes);
-    let mut reader = BufReader::new(cursor);
+    let json_str = String::from_utf8(json_bytes)
+        .map_err(|_| "could not parse bytes as json string".to_owned())?;
 
-    let mut _json_bytes_vec = Vec::new();
-    let skip_code_map = ['{', '}', '[', ']', ':'];
-    let mut json_values : Vec<JValueMap> = Vec::new();
-    reader.read_to_end(&mut _json_bytes_vec).unwrap();
+    let (value, code_map) = Value::parse_str(&json_str)
+        .map_err(|_| "could not parse bytes as json".to_owned())?;
 
-    let json_str = match String::from_utf8(_json_bytes_vec.clone()) {
-        Ok(_js) => _js,
-        Err(_e) => {
-            return Err("could not parse bytes as json string".to_owned());
+    let mut json_values: Vec<JValueMap> = Vec::new();
+    // CodeMap index `i` corresponds to the fragment at traverse offset `i`.
+    for (i, frag) in value.traverse() {
+        let span = code_map.as_slice()[i].span;
+        let (s, e) = (span.start(), span.end());
+        let raw = json_str[s..e].to_string();
+        match frag {
+            FragmentRef::Value(Value::String(_)) => json_values.push(JValueMap::new((s + 1, e - 1), raw, JType::JString)),
+            FragmentRef::Value(Value::Number(_)) => json_values.push(JValueMap::new((s, e), raw, JType::JNumber)),
+            FragmentRef::Value(Value::Boolean(_)) => json_values.push(JValueMap::new((s, e), raw, JType::JBool)),
+            FragmentRef::Value(Value::Null) => json_values.push(JValueMap::new((s, e), raw, JType::JNull)),
+            _ => {} // keys, entries, arrays, objects
         }
-    };
+    }
 
-    let _: Result<(Value, CodeMap), json_syntax::parse::Error> = match Value::parse_str(json_str.as_str()) {
-        Ok(_p) => {
-            'outer: for _map in _p.1 {
-                reader.seek(std::io::SeekFrom::Start(0)).unwrap();
-
-                let mut _rev: i64 = (_map.1.span.end() - _map.1.span.start() ) as i64;
-                let mut tmp_value = String::new();
-                for (pos, mut _jb) in reader.by_ref().bytes().enumerate().skip(_map.1.span.start()).take(_map.1.span.end() - _map.1.span.start() ) {
-                    if _json_bytes_vec.len() <= ((pos as i64) + _rev) as usize { _rev = _rev - 2; continue;}
-                    if skip_code_map.contains(&(_json_bytes_vec[((pos as i64) + _rev) as usize] as char)) {
-                        _rev = _rev - 2;
-                        continue 'outer;
-                    }
-                    tmp_value.push(_json_bytes_vec[pos] as char);
-                    _rev = _rev - 2;
-                }
-                let _type: JType;
-                match tmp_value.chars().nth(0).unwrap() {
-                    '\"' => {
-                        json_values.push(JValueMap::new((_map.1.span.start()+1, _map.1.span.end()-1), tmp_value, JType::JString));
-                    },
-                    't' | 'f' => {
-                        json_values.push(JValueMap::new((_map.1.span.start(), _map.1.span.end()), tmp_value, JType::JBool));
-                    },
-                    'n' => {
-                        json_values.push(JValueMap::new((_map.1.span.start(), _map.1.span.end()), tmp_value, JType::JNull));
-                    },
-                    c => {
-                        if c.is_ascii_digit() {
-                            json_values.push(JValueMap::new((_map.1.span.start(), _map.1.span.end()), tmp_value, JType::JNumber));
-                        }
-                    }                    
-                }
-            }
-
-            return Ok(json_values);
-        },
-        Err(_r) => {
-            return Err("could not parse bytes as json".to_owned());
-        }
-    };
+    Ok(json_values)
 }
